@@ -5,7 +5,7 @@ export const updateUserGuard = (
   res: Response,
   next: NextFunction
 ) => {
-  console.log(req.body);
+  
   const targetId = req.params.userId;
   const user = req.user;
   if (user?.role === "customer") {

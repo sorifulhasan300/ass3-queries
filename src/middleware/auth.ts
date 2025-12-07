@@ -9,7 +9,7 @@ export const auth = (...roles: string[]) => {
       if (!token) {
         return res.status(401).json({
           success: false,
-          message: "Unauthorized: Token missing",
+          message: "Unauthorized access",
         });
       }
       const decode = jwt.verify(
@@ -17,7 +17,7 @@ export const auth = (...roles: string[]) => {
         config.secrete as string
       ) as JwtPayload;
       req.user = decode as JwtPayload;
-      
+
       if (roles.length && !roles.includes(decode.role)) {
         return res.status(403).json({
           success: false,

@@ -71,7 +71,6 @@ const updateVehicle = async (id: string, payload: Record<string, unknown>) => {
 };
 
 const deleteVehicle = async (id: string) => {
-  console.log(id);
   const result = await pool.query(`DELETE FROM vehicles WHERE id = $1`, [id]);
   if (result.rowCount === 0) {
     throw new Error("Vehicle delete unsuccessfully");

@@ -20,8 +20,11 @@ const vehicleBooking = async (req: Request, res: Response) => {
 
 const getBookings = async (req: Request, res: Response) => {
   try {
-    const booking = await bookingService.getBookings();
-    res.status(201).json({
+    const role = req.user?.role;
+    const customerId = req.user?.id;
+    const booking = await bookingService.getBookings(role, customerId);
+
+    res.status(200).json({
       success: true,
       message: "Get Bookings successfully",
       data: booking,
@@ -43,7 +46,7 @@ const updateBookingStatus = async (req: Request, res: Response) => {
       id as string,
       status
     );
-    console.log("controller", booking.customer_id);
+
     res.status(201).json({
       success: true,
       message: "update booking status successfully",

@@ -4,7 +4,6 @@ import { Service } from "../auth/auth.service";
 
 const getUsers = async (req: Request, res: Response) => {
   try {
-    console.log(req.user);
     const users = await userService.getUsers();
     res.status(200).json({
       success: true,
@@ -22,8 +21,6 @@ const getUsers = async (req: Request, res: Response) => {
 
 const updateUser = async (req: Request, res: Response) => {
   const id = req.params.userId;
-  console.log(req.user);
-  console.log(id);
   const { name, email, phone, role } = req.body;
   try {
     const result = await userService.updateUser(
@@ -33,13 +30,18 @@ const updateUser = async (req: Request, res: Response) => {
       phone,
       role
     );
-    if (result.rowCount === 1) {
-      res.status(200).json({
+    if (result.rowCount === 0) {
+      res.status(400).json({
         success: true,
-        message: "User update Successfully",
+        message: "User Not Found",
         data: result.rows[0],
       });
     }
+    res.status(200).json({
+      success: true,
+      message: "User update Successfully",
+      data: result.rows[0],
+    });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -53,6 +55,13 @@ const deleteUser = async (req: Request, res: Response) => {
   try {
     const id = req.params.userId;
     const users = await userService.deleteUser(id as string);
+    if (users.rowCount === 0) {
+      res.status(400).json({
+        success: true,
+        message: "User Not Found",
+        data: {},
+      });
+    }
     res.status(200).json({
       success: true,
       message: "User Delete Successfully",

@@ -5,8 +5,9 @@ import { updateUserGuard } from "../../middleware/updateGuird";
 
 const router = Router();
 
-// get users
+// admin only
 router.get("/", auth("admin"), usersController.getUsers);
+// admin user own profile update
 router.put(
   "/:userId",
   auth("admin", "customer"),
