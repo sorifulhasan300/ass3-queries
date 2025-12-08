@@ -167,7 +167,11 @@ const getBookings = async (role: string, customerId: number) => {
   }
 };
 
-const updateBookingStatus = async (id: string, status: string) => {
+const updateBookingStatus = async (
+  id: string,
+  status: string,
+  role: string
+) => {
   const result = await pool.query(
     `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`,
     [status, id]
@@ -183,6 +187,23 @@ const updateBookingStatus = async (id: string, status: string) => {
     (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
   );
   const totalPrice = duration_days * 100;
+  const today = new Date();
+
+  if (role === "customer") {
+    if (today < startDate) {
+      // ekhane query chalabo cencel korbe vechele booking status canceled
+    } else {
+      throw new Error("You do not canceled booking");
+    }
+  }
+
+  if (role === "admin") {
+    // Admin: Mark as "returned" (updates vehicle to "available")
+  }
+
+  if (endDate === today) {
+    // System: Auto-mark as "returned" when period ends
+  }
 
   return {
     id: bookings.id,
@@ -197,6 +218,72 @@ const updateBookingStatus = async (id: string, status: string) => {
     },
   };
 };
+
+// const cancelBooking = async (id: string, customer_id: string) => {
+//   const booking = await pool.query(
+//     SELECT * FROM bookings WHERE id=$1 AND customer_id=$2,
+//     [id, customer_id]
+//   );
+
+//   if (booking.rows.length === 0) {
+//     return "Booking not found or unauthorized";
+//   }
+
+//   const start = new Date(booking.rows[0].rent_start_date);
+//   const today = new Date();
+
+//   if (today >= start) {
+//     return "Booking can't be cancelled after start date";
+//   }
+
+//   await pool.query(UPDATE bookings SET status='cancelled' WHERE id=$1, [id]);
+
+//   await pool.query(
+//     UPDATE vehicles SET availability_status='available' WHERE id=$1,
+//     [booking.rows[0].vehicle_id]
+//   );
+
+//   return booking.rows[0];
+// };
+
+// const makeReturned = async (id: string) => {
+//   const booking = await pool.query(SELECT * FROM bookings WHERE id=$1, [id]);
+
+//   if (booking.rows.length === 0) {
+//     return "Booking not found";
+//   }
+
+//   await pool.query(UPDATE bookings SET status='returned' WHERE id=$1, [id]);
+
+//   await pool.query(
+//     UPDATE vehicles SET availability_status='available' WHERE id=$1,
+//     [booking.rows[0].vehicle_id]
+//   );
+
+//   return booking.rows[0];
+// };
+
+// const autoReturned = async () => {
+//   const toDay = new Date();
+
+//   const result = await pool.query(
+//     SELECT * FROM bookings WHERE rent_end_date<$1 AND status='active',
+//     [toDay]
+//   );
+
+//   for (let booking of result.rows) {
+//     await pool.query(UPDATE bookings SET status='returned' WHERE id=$1, [
+//       booking.id,
+//     ]);
+
+//     await pool.query(
+//       UPDATE vehicles SET availability_status='available' WHERE id=$1,
+//       [booking.vehicle_id]
+//     );
+//   }
+
+//   return result.rows.length;
+// };
 
 export const bookingService = {
   vehicleBooking,

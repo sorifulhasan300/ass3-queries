@@ -6,6 +6,10 @@ const router = Router();
 
 router.post("/", auth("admin", "customer"), bookingController.vehicleBooking);
 router.get("/", auth("admin", "customer"), bookingController.getBookings);
-router.put("/:bookingId", bookingController.updateBookingStatus);
+router.put(
+  "/:bookingId",
+  auth("admin", "customer"),
+  bookingController.updateBookingStatus
+);
 
 export const bookingRouter = router;

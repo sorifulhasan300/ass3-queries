@@ -70,7 +70,20 @@ const updateVehicle = async (id: string, payload: Record<string, unknown>) => {
   return result;
 };
 
+
 const deleteVehicle = async (id: string) => {
+  const res = await pool.query(
+    "SELECT COUNT(*) AS count FROM vehicles WHERE id=$1 AND availability_status='booking'",
+    [id]
+  );
+  console.log(res);
+  const activeCount = Number(res.rows[0].count);
+  console.log(activeCount);
+  if (res.rowCount === 1) {
+    throw new Error(
+      "vehicle cannot be deleted because they have active bookings."
+    );
+  }
   const result = await pool.query(`DELETE FROM vehicles WHERE id = $1`, [id]);
   if (result.rowCount === 0) {
     throw new Error("Vehicle delete unsuccessfully");
