@@ -76,9 +76,8 @@ const deleteVehicle = async (id: string) => {
     "SELECT COUNT(*) AS count FROM vehicles WHERE id=$1 AND availability_status='booking'",
     [id]
   );
-  console.log(res);
   const activeCount = Number(res.rows[0].count);
-  console.log(activeCount);
+
   if (res.rowCount === 1) {
     throw new Error(
       "vehicle cannot be deleted because they have active bookings."

@@ -168,55 +168,117 @@ const getBookings = async (role: string, customerId: number) => {
 };
 
 const updateBookingStatus = async (
-  id: string,
+  bookingId: string,
+  customerId: string,
   status: string,
   role: string
 ) => {
-  const result = await pool.query(
-    `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`,
-    [status, id]
-  );
-
-  if (result.rowCount === 0) {
-    throw new Error("Booking Not Found");
+  if (!status) {
+    throw new Error("Status must be 'cancelled' or 'returned'");
   }
-  const bookings = result.rows[0];
-  const startDate = bookings.rent_end_date;
-  const endDate = bookings.rows[0].rent_end_date;
+
+  // 1) Get booking
+  const bookingRes = await pool.query(`SELECT * FROM bookings WHERE id=$1`, [
+    bookingId,
+  ]);
+ 
+  if (bookingRes.rowCount === 0) {
+    throw new Error("Booking not found");
+  }
+
+  const booking = bookingRes.rows[0];
+
+  const startDate = new Date(booking.rent_start_date);
+  const endDate = new Date(booking.rent_end_date);
+  const today = new Date();
+
+  // 2) Get vehicle info
+  const vehicleRes = await pool.query(`SELECT * FROM vehicles WHERE id=$1`, [
+    booking.vehicle_id,
+  ]);
+
+  const vehicle = vehicleRes.rows[0];
+  const dailyRentPrice = vehicle.daily_rent_price;
+
+  // Calculate duration
   const duration_days = Math.ceil(
     (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
   );
-  const totalPrice = duration_days * 100;
-  const today = new Date();
+
+  const totalPrice = duration_days * dailyRentPrice;
 
   if (role === "customer") {
-    if (today < startDate) {
-      // ekhane query chalabo cencel korbe vechele booking status canceled
-    } else {
-      throw new Error("You do not canceled booking");
+    if (today >= startDate) {
+      throw new Error("Booking already started. You can't cancel it.");
     }
+
+    if (status !== "cancelled") {
+      throw new Error("Customer can only set status to 'cancelled'");
+    }
+
+    const res = await pool.query(
+      "UPDATE bookings SET status=$1 WHERE id=$2 RETURNING *",
+      [status, bookingId]
+    );
+
+    await pool.query(
+      "UPDATE vehicles SET availability_status='available', updated_at=NOW() WHERE id=$1 RETURNING *",
+      [booking.vehicle_id]
+    );
+
+    return {
+      ...res.rows[0],
+      total_price: totalPrice,
+    };
   }
 
   if (role === "admin") {
-    // Admin: Mark as "returned" (updates vehicle to "available")
+    if (status !== "returned") {
+      throw new Error("Admin can only set status to 'returned'");
+    }
+
+    // 1) Update booking
+    await pool.query("UPDATE bookings SET status='returned' WHERE id=$1", [
+      bookingId,
+    ]);
+
+    // 2) Make vehicle available again
+    const vehicleUpdate = await pool.query(
+      "UPDATE vehicles SET availability_status='available', updated_at=NOW() WHERE id=$1 RETURNING *",
+      [booking.vehicle_id]
+    );
+
+    return {
+      ...booking,
+      total_price: totalPrice,
+      status: "returned",
+      vehicle: {
+        availability_status: vehicleUpdate.rows[0].availability_status,
+      },
+    };
   }
 
-  if (endDate === today) {
-    // System: Auto-mark as "returned" when period ends
+  const dateToday = today.toISOString().split("T")[0];
+  const endDateOnly = endDate.toISOString().split("T")[0];
+
+  if (endDateOnly === dateToday) {
+    await pool.query(
+      "UPDATE bookings SET status='returned', updated_at=NOW() WHERE id=$1",
+      [bookingId]
+    );
+    // 2) Make vehicle available again
+    await pool.query(
+      "UPDATE vehicles SET availability_status='available', updated_at=NOW() WHERE id=$1 RETURNING *",
+      [booking.vehicle_id]
+    );
+    return {
+      ...booking,
+      status: "returned",
+      info: "Auto-returned by system",
+    };
   }
 
-  return {
-    id: bookings.id,
-    customer_id: bookings.customer_id,
-    vehicle_id: bookings.vehicle_id,
-    rent_start_date: bookings.rent_start_date,
-    rent_end_date: bookings.rent_end_date,
-    total_price: totalPrice,
-    status: bookings.status,
-    vehicle: {
-      availability_status: bookings.availability_status,
-    },
-  };
+  throw new Error("Invalid role or status");
 };
 
 // const cancelBooking = async (id: string, customer_id: string) => {
